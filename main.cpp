@@ -29,14 +29,15 @@ typedef struct cell_t
     sf::Color color;
     bool updated;
     u32 weigh;
-    u32 flamibility;
+    u32 flamibility = 0;
+    u32 fuel = 0;
 } cell_t;
 
 // Pre-set types of Cells
-#define AIR cell_t {0, -1, sf::Color::Black, false, 0, 0}
-#define SAND cell_t {1, -1, (rand() & 1 ? sf::Color::Yellow : sf::Color(255, 255, 150)), false, 2, 5}
-#define WATER cell_t {2, -1, sf::Color::Blue, false, 1, 0}
-#define STONE cell_t {3, -1, sf::Color(169, 169, 169), false, 10, 0}
+#define AIR cell_t {0, -1, sf::Color::Black, false, 0}
+#define SAND cell_t {1, -1, (rand() & 1 ? sf::Color::Yellow : sf::Color(255, 255, 150)), false, 2, 40, 20}
+#define WATER cell_t {2, -1, sf::Color::Blue, false, 1}
+#define STONE cell_t {3, -1, sf::Color(169, 169, 169), false, 10}
 #define FIRE cell_t {4, 10, sf::Color::Red, false, 0}
 #define SMOKE cell_t {5, 25, sf::Color(30, 30, 30), false, 0}
 
@@ -138,7 +139,29 @@ void updateFire(u32 i, u32 j)
 {
     grid[i][j].updated = true;
 
-    if (isWithinBounds(i - 1, j) && grid[i - 1][j].id == 0 && rand() & 1)
+    for (int di = -1; di <= 1; ++di)
+    {
+        for (int dj = -1; dj <= 1; ++dj)
+        {
+            if (di == 0 && dj == 0) 
+                continue;
+
+            u32 ni = i + di;
+            u32 nj = j + dj;
+
+            if (isWithinBounds(ni, nj) && grid[ni][nj].flamibility > 0)
+            {
+                if (rand() % grid[ni][nj].flamibility == 0)
+                {
+                    auto temp = grid[ni][nj].fuel;
+                    grid[ni][nj] = FIRE;
+                    grid[ni][nj].life_time += temp;
+                }
+            }
+        }
+    }
+
+    if (isWithinBounds(i - 1, j) && grid[i][j].life_time <= 10 && grid[i - 1][j].id == 0 && rand() & 1)
         swapCells(i, j, i - 1, j);
 }
 
