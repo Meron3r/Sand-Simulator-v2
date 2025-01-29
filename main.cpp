@@ -10,6 +10,7 @@
 #define HEIGHT 200
 #define WIDTH 300
 #define PIX_SIZE 5
+#define BRUSH_LIMIT 8
 
 // Typedef
 typedef unsigned int u32;
@@ -20,6 +21,7 @@ sf::RenderWindow window(sf::VideoMode({WIDTH * PIX_SIZE, HEIGHT * PIX_SIZE}), "S
 // Other vars...
 bool buttonPressed;
 u32 mouseType;
+
 
 // Cell TYPE
 typedef struct cell_t
@@ -33,19 +35,51 @@ typedef struct cell_t
     u32 fuel = 0;
 } cell_t;
 
+// MouseCell and Game Grid
+cell_t mouseCell;
+cell_t grid[HEIGHT][WIDTH];
+
 // Pre-set types of Cells
 #define AIR cell_t {0, -1, sf::Color::Black, false, 0}
-#define SAND cell_t {1, -1, (rand() & 1 ? sf::Color::Yellow : sf::Color(255, 255, 150)), false, 2, 40, 20}
+#define SAND cell_t {1, -1, (rand() & 1 ? sf::Color::Yellow : sf::Color(255, 255, 150)), false, 2}
 #define WATER cell_t {2, -1, sf::Color::Blue, false, 1}
 #define STONE cell_t {3, -1, sf::Color(169, 169, 169), false, 10}
 #define FIRE cell_t {4, 10, sf::Color::Red, false, 0}
-#define SMOKE cell_t {5, 25, sf::Color(30, 30, 30), false, 0}
+#define SMOKE cell_t {5, 50, sf::Color(30, 30, 30), false, 0}
+#define WOOD cell_t {6, -1, sf::Color(155, 103, 60), false, 10, 200, 300}
+#define GUNPOWDER cell_t {7, -1, (rand() & 1 ? sf::Color(150, 150, 150) : sf::Color(125, 125, 125)), false, 2, 5, 5}
+#define COAL cell_t {8, -1, sf::Color(20, 20, 20), false, 10, 50, 1000}
 
-// MouseCell
-cell_t mouseCell;
-
-// Game Grid
-cell_t grid[HEIGHT][WIDTH];
+void chooseBrushElement()
+{
+    switch (mouseType)
+    {
+        case 0:
+            mouseCell = AIR;
+            break;
+        case 1:
+            mouseCell = SAND;
+            break;
+        case 2:
+            mouseCell = WATER;
+            break;
+        case 3:
+            mouseCell = STONE;
+            break;
+        case 4:
+            mouseCell = FIRE;
+            break;
+        case 5:
+            mouseCell = WOOD;
+            break;
+        case 6:
+            mouseCell = GUNPOWDER;
+            break;
+        case 7:
+            mouseCell = COAL;
+            break;
+    }
+}
 
 void swapCells(u32 i1, u32 j1, u32 i2, u32 j2)
 {
@@ -268,6 +302,9 @@ void update()
                 case 5:
                     updateSmoke(i, j);
                     break;
+                case 7:
+                    updateSand(i, j);
+                    break;
             }
 
             if (grid[i][j].life_time != -1)
@@ -279,24 +316,7 @@ void update()
         }
     }
     
-    switch (mouseType)
-    {
-        case 0:
-            mouseCell = AIR;
-            break;
-        case 1:
-            mouseCell = SAND;
-            break;
-        case 2:
-            mouseCell = WATER;
-            break;
-        case 3:
-            mouseCell = STONE;
-            break;
-        case 4:
-            mouseCell = FIRE;
-            break;
-    }
+    chooseBrushElement();
 
     if (buttonPressed)
     {
@@ -327,7 +347,7 @@ void keys(sf::Event event)
         buttonPressed = false;
 
     if (event.type == sf::Event::MouseButtonPressed && event.mouseButton.button == sf::Mouse::Right)
-        mouseType = (mouseType + 1) % 5;
+        mouseType = (mouseType + 1) % BRUSH_LIMIT;
 }
 
 int main()
