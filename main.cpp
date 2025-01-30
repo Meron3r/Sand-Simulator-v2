@@ -4,13 +4,13 @@
 #include <SFML/System.hpp>
 #include <SFML/Window/Mouse.hpp>
 #include <iostream>
-#include <cstdlib>
+#include <random>
 
 // Constants
 #define HEIGHT 200
-#define WIDTH 300
-#define PIX_SIZE 5
-#define BRUSH_LIMIT 8
+#define WIDTH 400
+#define PIX_SIZE 4
+#define BRUSH_LIMIT 9
 
 // Typedef
 typedef unsigned int u32;
@@ -21,7 +21,11 @@ sf::RenderWindow window(sf::VideoMode({WIDTH * PIX_SIZE, HEIGHT * PIX_SIZE}), "S
 // Other vars...
 bool buttonPressed;
 u32 mouseType;
+int BRUSH_SIZE;
 
+std::random_device rd;
+std::mt19937 gen(rd());
+std::uniform_int_distribution<> dis(0, RAND_MAX);
 
 // Cell TYPE
 typedef struct cell_t
@@ -40,15 +44,16 @@ cell_t mouseCell;
 cell_t grid[HEIGHT][WIDTH];
 
 // Pre-set types of Cells
-#define AIR cell_t {0, -1, sf::Color::Black, false, 0}
-#define SAND cell_t {1, -1, (rand() & 1 ? sf::Color::Yellow : sf::Color(255, 255, 150)), false, 2}
-#define WATER cell_t {2, -1, sf::Color::Blue, false, 1}
-#define STONE cell_t {3, -1, sf::Color(169, 169, 169), false, 10}
-#define FIRE cell_t {4, 10, sf::Color::Red, false, 0}
-#define SMOKE cell_t {5, 50, sf::Color(30, 30, 30), false, 0}
-#define WOOD cell_t {6, -1, sf::Color(155, 103, 60), false, 10, 200, 300}
-#define GUNPOWDER cell_t {7, -1, (rand() & 1 ? sf::Color(150, 150, 150) : sf::Color(125, 125, 125)), false, 2, 5, 5}
-#define COAL cell_t {8, -1, sf::Color(20, 20, 20), false, 10, 50, 1000}
+#define AIR cell_t {0, -100, sf::Color::Black, false, 0}
+#define SAND cell_t {1, -100, (dis(gen) & 1 ? sf::Color::Yellow : sf::Color(255, 255, 150)), false, 2}
+#define WATER cell_t {2, -100, sf::Color::Blue, false, 1}
+#define STONE cell_t {3, -100, sf::Color(169, 169, 169), false, 10}
+#define FIRE cell_t {4, 15, (dis(gen) & 1 ? sf::Color::Red : sf::Color (255, 165, 0)), false, 0}
+#define SMOKE cell_t {5, 150, sf::Color(70, 70, 70), false, 0}
+#define WOOD cell_t {6, -100, sf::Color(155, 103, 60), false, 10, 200, 300}
+#define GUNPOWDER cell_t {7, -100, (dis(gen) & 1 ? sf::Color(150, 150, 150) : sf::Color(125, 125, 125)), false, 2, 5, 5}
+#define COAL cell_t {8, -100, sf::Color(20, 20, 20), false, 10, 500, 2000}
+#define LAVA cell_t {9, -100, sf::Color(255, 128, 0), false, 1, 0, 1000}
 
 void chooseBrushElement()
 {
@@ -78,6 +83,9 @@ void chooseBrushElement()
         case 7:
             mouseCell = COAL;
             break;
+        case 8:
+            mouseCell = LAVA;
+            break;
     }
 }
 
@@ -86,7 +94,7 @@ void swapCells(u32 i1, u32 j1, u32 i2, u32 j2)
     auto temp = grid[i2][j2];
     grid[i2][j2] = grid[i1][j1];
 
-    if (grid[i2][j2].id == 2 && temp.id == 4)
+    if ((grid[i2][j2].id == 2 || grid[i2][j2].id == 1) && temp.id == 4)
         grid[i1][j1] = SMOKE;
     else 
         grid[i1][j1] = temp;
@@ -108,7 +116,7 @@ void updateSand(u32 i, u32 j)
     
     else if (isWithinBounds(i + 1, j + 1) && isWithinBounds(i + 1, j - 1) && grid[i + 1][j + 1].weigh < grid[i][j].weigh && grid[i + 1][j - 1].weigh < grid[i][j].weigh)
     {
-        switch (rand() & 1) 
+        switch (dis(gen) & 1) 
         {
             case 0:
                 swapCells(i, j, i + 1, j + 1);
@@ -134,7 +142,7 @@ void updateWater(u32 i, u32 j)
     
     else if (isWithinBounds(i + 1, j + 1) && grid[i + 1][j + 1].weigh < grid[i][j].weigh && isWithinBounds(i + 1, j - 1) && grid[i + 1][j - 1].weigh < grid[i][j].weigh)
     {
-        switch (rand() & 1)
+        switch (dis(gen) & 1)
         {
             case 0:
                 swapCells(i, j, i + 1, j + 1);
@@ -152,7 +160,7 @@ void updateWater(u32 i, u32 j)
 
     else if (isWithinBounds(i, j + 1) && grid[i][j + 1].weigh < grid[i][j].weigh && isWithinBounds(i, j - 1) && grid[i][j - 1].weigh < grid[i][j].weigh)
     {
-        switch (rand() & 1)
+        switch (dis(gen) & 1)
         {
             case 0:
                 swapCells(i, j, i, j + 1);
@@ -185,7 +193,7 @@ void updateFire(u32 i, u32 j)
 
             if (isWithinBounds(ni, nj) && grid[ni][nj].flamibility > 0)
             {
-                if (rand() % grid[ni][nj].flamibility == 0)
+                if (dis(gen) % grid[ni][nj].flamibility == 0)
                 {
                     auto temp = grid[ni][nj].fuel;
                     grid[ni][nj] = FIRE;
@@ -195,7 +203,7 @@ void updateFire(u32 i, u32 j)
         }
     }
 
-    if (isWithinBounds(i - 1, j) && grid[i][j].life_time <= 10 && grid[i - 1][j].id == 0 && rand() & 1)
+    if (isWithinBounds(i - 1, j) && grid[i][j].life_time <= 15 && grid[i - 1][j].id == 0 && dis(gen) & 1)
         swapCells(i, j, i - 1, j);
 }
 
@@ -208,7 +216,7 @@ void updateSmoke(u32 i, u32 j)
     
     else if (isWithinBounds(i - 1, j + 1) && isWithinBounds(i - 1, j - 1) && grid[i - 1][j + 1].id == 0 && grid[i - 1][j - 1].id == 0)
     {
-        switch (rand() & 1) 
+        switch (dis(gen) & 1) 
         {
             case 0:
                 swapCells(i, j, i - 1, j + 1);
@@ -225,6 +233,73 @@ void updateSmoke(u32 i, u32 j)
         swapCells(i, j, i - 1, j - 1);
 }
 
+void updateLava(u32 i, u32 j)
+{
+    updateWater(i, j);
+
+    for (int di = -1; di <= 1; ++di)
+    {
+        for (int dj = -1; dj <= 1; ++dj)
+        {
+            if (di == 0 && dj == 0) 
+                continue;
+
+            u32 ni = i + di;
+            u32 nj = j + dj;
+
+            if (isWithinBounds(ni, nj) && grid[ni][nj].flamibility > 0)
+            {
+                if (dis(gen) % grid[ni][nj].flamibility == 0)
+                {
+                    auto temp = grid[ni][nj].fuel;
+                    grid[ni][nj] = FIRE;
+                    grid[ni][nj].life_time += temp;
+                }
+            }
+        }
+    }
+
+    for (int di = -1; di <= 1; ++di)
+    {
+        for (int dj = -1; dj <= 1; ++dj)
+        {
+            u32 ni = i + di;
+            u32 nj = j + dj;
+            if (isWithinBounds(ni, nj) && grid[ni][nj].id == 2)
+            {
+                grid[i][i] = AIR;
+                grid[ni][nj] = SMOKE;
+                return;
+            }
+        }
+    }
+}
+
+void updateElements(u32 i, u32 j)
+{
+    switch (grid[i][j].id) 
+    {
+        case 1:
+            updateSand(i, j);
+            break;
+        case 2:
+            updateWater(i, j);
+            break;
+        case 4:
+            updateFire(i, j);
+            break;
+        case 5:
+            updateSmoke(i, j);
+            break;
+        case 7:
+            updateSand(i, j);
+            break;
+        case 9:
+            updateLava(i, j);
+            break;
+    }
+}
+
 void init()
 {
     // Set every cell to AIR
@@ -234,12 +309,10 @@ void init()
     
     // Set framerate limit
     window.setFramerateLimit(80);
-    
-    // Setup rand()
-    srand(time(0));
 
-    // Set mouseType
+    // Set variables
     mouseType = 0;
+    BRUSH_SIZE = 4;
 }
 
 void render()
@@ -280,38 +353,21 @@ void update()
             if (grid[i][j].id == 0 || grid[i][j].updated == true)
                 continue;
 
-            if (grid[i][j].life_time != -1 && grid[i][j].life_time == 0)
+            if (grid[i][j].life_time != -100 && grid[i][j].life_time <= 0)
             {
-                if (grid[i][j].id == 4 && rand() & 1)
+                if (grid[i][j].id == 4 && dis(gen) & 1)
                     grid[i][j] = SMOKE;
                 else
                     grid[i][j] = AIR;
             }
             
-            switch (grid[i][j].id) 
-            {
-                case 1:
-                    updateSand(i, j);
-                    break;
-                case 2:
-                    updateWater(i, j);
-                    break;
-                case 4:
-                    updateFire(i, j);
-                    break;
-                case 5:
-                    updateSmoke(i, j);
-                    break;
-                case 7:
-                    updateSand(i, j);
-                    break;
-            }
+            updateElements(i, j);
 
-            if (grid[i][j].life_time != -1)
+            if (grid[i][j].life_time != -100)
             {
                 grid[i][j].life_time--;
                 if (grid[i][j].id == 4)
-                    grid[i][j].color = (rand() & 1 ? sf::Color::Red : sf::Color (255, 165, 0));
+                    grid[i][j].color = (dis(gen) & 1 ? sf::Color::Red : sf::Color (255, 165, 0));
             }
         }
     }
@@ -320,18 +376,16 @@ void update()
 
     if (buttonPressed)
     {
-        auto X = sf::Mouse::getPosition(window).y / PIX_SIZE, Y = sf::Mouse::getPosition(window).x / PIX_SIZE;
-        
-        if (Y + 1 < HEIGHT)
-            grid[X][Y + 1] = mouseCell;
-        if (X - 1 >= 0)
-            grid[X - 1][Y] = mouseCell;
-        if (X + 1 < WIDTH)
-            grid[X + 1][Y] = mouseCell;
-        if (Y - 1 >= 0)
-            grid[X][Y - 1] = mouseCell;
+        int X = sf::Mouse::getPosition(window).y / PIX_SIZE, Y = sf::Mouse::getPosition(window).x / PIX_SIZE;
 
-        grid[X][Y] = mouseCell;
+        for (int i = int(-(BRUSH_SIZE / 2)); i <= int((BRUSH_SIZE / 2)); i++)
+        {
+            for (int j = int(-(BRUSH_SIZE / 2)); j <= int((BRUSH_SIZE / 2)); j++)
+            {
+                if (isWithinBounds(i + X, j + Y))
+                    grid[i + X][j + Y] = mouseCell;
+            }
+        }
     }
 }
 
@@ -348,6 +402,22 @@ void keys(sf::Event event)
 
     if (event.type == sf::Event::MouseButtonPressed && event.mouseButton.button == sf::Mouse::Right)
         mouseType = (mouseType + 1) % BRUSH_LIMIT;
+
+    if (event.type == sf::Event::KeyPressed)
+    {
+        if (event.key.code == sf::Keyboard::Up)
+            BRUSH_SIZE = std::min(BRUSH_SIZE + 1, WIDTH / 2);
+        else if (event.key.code == sf::Keyboard::Down)
+            BRUSH_SIZE = std::max(BRUSH_SIZE - 1, 1);
+    }
+
+    if (event.type == sf::Event::MouseWheelMoved)
+    {
+        if (event.mouseWheel.delta > 0)
+            BRUSH_SIZE = std::min(BRUSH_SIZE + 1, WIDTH / 2);
+        else if (event.mouseWheel.delta < 0)
+            BRUSH_SIZE = std::max(BRUSH_SIZE - 1, 1);
+    }
 }
 
 int main()
