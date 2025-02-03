@@ -10,7 +10,7 @@
 #define HEIGHT 200
 #define WIDTH 400
 #define PIX_SIZE 4
-#define BRUSH_LIMIT 9
+#define BRUSH_LIMIT 11
 
 // Typedef
 typedef unsigned int u32;
@@ -56,6 +56,8 @@ cell_t grid[HEIGHT][WIDTH];
 #define GUNPOWDER cell_t {7, -100, (dis(gen) & 1 ? sf::Color(150, 150, 150) : sf::Color(125, 125, 125)), false, 2, 5, 5}
 #define COAL cell_t {8, -100, sf::Color(20, 20, 20), false, 10, 500, 2000}
 #define LAVA cell_t {9, -100, sf::Color(255, 128, 0), false, 1, 0, 1000}
+#define ICE  cell_t {10, -100, (dis(gen) & 1 ? sf::Color::Cyan : sf::Color(101, 217, 252)), false, 10, 30}
+#define TREE cell_t {11, -100, sf::Color(0, 100, 0), false, 15}
 
 void chooseBrushElement()
 {
@@ -87,6 +89,12 @@ void chooseBrushElement()
             break;
         case 8:
             mouseCell = LAVA;
+            break;
+        case 9:
+            mouseCell = ICE;
+            break;
+        case 10:
+            mouseCell = TREE;
             break;
     }
 }
@@ -208,9 +216,14 @@ void updateFire(u32 i, u32 j)
             {
                 if (dis(gen) % grid[ni][nj].flamibility == 0)
                 {
-                    auto temp = grid[ni][nj].fuel;
-                    grid[ni][nj] = FIRE;
-                    grid[ni][nj].life_time += temp;
+                    if (grid[ni][nj].id == 10)
+                        grid[ni][nj] = WATER;
+                    else
+                    {
+                        auto temp = grid[ni][nj].fuel;
+                        grid[ni][nj] = FIRE;
+                        grid[ni][nj].life_time += temp;
+                    }
                 }
             }
         }
@@ -248,13 +261,15 @@ void updateSmoke(u32 i, u32 j)
 
 void updateLava(u32 i, u32 j)
 {
+    // Apply water-like behavior for lava (if desired).
     updateWater(i, j);
 
+    // Existing behavior: check neighboring cells for flammable material.
     for (int di = -1; di <= 1; ++di)
     {
         for (int dj = -1; dj <= 1; ++dj)
         {
-            if (di == 0 && dj == 0) 
+            if (di == 0 && dj == 0)
                 continue;
 
             u32 ni = i + di;
@@ -272,18 +287,95 @@ void updateLava(u32 i, u32 j)
         }
     }
 
+    // New behavior: if any neighbor is water, convert lava into stone.
     for (int di = -1; di <= 1; ++di)
     {
         for (int dj = -1; dj <= 1; ++dj)
         {
             u32 ni = i + di;
             u32 nj = j + dj;
-            if (isWithinBounds(ni, nj) && grid[ni][nj].id == 2)
+            if (isWithinBounds(ni, nj) && grid[ni][nj].id == 2) // Water id is 2
             {
-                grid[i][i] = AIR;
-                grid[ni][nj] = SMOKE;
-                return;
+                grid[i][j] = STONE; // Replace lava with stone at its own cell.
+                return;            // Exit after conversion.
             }
+        }
+    }
+}
+
+
+void updateIce(u32 i, u32 j) 
+{
+    grid[i][j].updated = true;
+    
+    for (int di = -1; di <= 1; ++di) 
+    {
+        for (int dj = -1; dj <= 1; ++dj) 
+        {
+            if (di == 0 && dj == 0)
+                continue;
+            u32 ni = i + di;
+            u32 nj = j + dj;
+            if (isWithinBounds(ni, nj) && grid[ni][nj].id == 2) 
+                if (dis(gen) % 50 == 0)
+                    grid[ni][nj] = ICE;
+        }
+    }
+}
+
+void SAPLING
+
+void updateTree(u32 i, u32 j) 
+{
+    grid[i][j].updated = true;
+
+    // Count tree neighbors
+    auto countTreeNeighbors = [&](int ci, int cj) -> int {
+        int count = 0;
+        for (int di = -1; di <= 1; ++di) {
+            for (int dj = -1; dj <= 1; ++dj) {
+                if (di == 0 && dj == 0) 
+                    continue;
+                int ni = ci + di;
+                int nj = cj + dj;
+                if (isWithinBounds(ni, nj) && grid[ni][nj].id == 11) {  // TREE id = 11
+                    count++;
+                }
+            }
+        }
+        return count;
+    };
+
+    int treeNeighbors = countTreeNeighbors(i, j);
+
+    // Gravity: Only fall if it has **no tree neighbors**
+    if (treeNeighbors == 0 && isWithinBounds(i + 1, j) && grid[i + 1][j].id == 0) 
+    {
+        std::swap(grid[i][j], grid[i + 1][j]); // Move down
+        return; // Skip growth this frame since it moved
+    }
+
+    // Only grow if tree is on solid ground
+    if (!isWithinBounds(i + 1, j) || grid[i + 1][j].id == 0) {
+        return; // No support, so do not grow
+    }
+
+    // Growth mechanics (only if tree has support)
+    if (isWithinBounds(i - 1, j) && grid[i - 1][j].id == 0) {
+        if (countTreeNeighbors(i - 1, j) < 3 && (dis(gen) % 100) < 20) {
+            grid[i - 1][j] = TREE;  // Grow upward
+        }
+    }
+
+    if (isWithinBounds(i - 1, j - 1) && grid[i - 1][j - 1].id == 0) {
+        if (countTreeNeighbors(i - 1, j - 1) < 3 && (dis(gen) % 100) < 10) {
+            grid[i - 1][j - 1] = TREE;  // Grow left
+        }
+    }
+
+    if (isWithinBounds(i - 1, j + 1) && grid[i - 1][j + 1].id == 0) {
+        if (countTreeNeighbors(i - 1, j + 1) < 3 && (dis(gen) % 100) < 10) {
+            grid[i - 1][j + 1] = TREE;  // Grow right
         }
     }
 }
@@ -310,6 +402,12 @@ void updateElements(u32 i, u32 j)
         case 9:
             updateLava(i, j);
             break;
+        case 10:
+            updateIce(i, j);
+            break;
+        case 11:
+            updateTree(i, j);
+            break;
     }
 }
 
@@ -332,7 +430,9 @@ void drawUI()
         sf::Color(155, 103, 60), // WOOD
         sf::Color(150, 150, 150), // GUNPOWDER
         sf::Color(20, 20, 20), // COAL
-        sf::Color(255, 128, 0) // LAVA
+        sf::Color(255, 128, 0), // LAVA
+        sf::Color::Cyan, // ICE
+        sf::Color(0, 100, 0) // TREE
     };
 
     for (int i = 0; i < BRUSH_LIMIT; ++i)
@@ -375,7 +475,7 @@ void init()
             grid[i][j] = AIR;
     
     // Set framerate limit
-    //window.setFramerateLimit(80);
+    window.setFramerateLimit(80);
 
     // Set variables
     mouseType = 0;
