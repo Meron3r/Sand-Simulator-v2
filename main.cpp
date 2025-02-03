@@ -323,8 +323,6 @@ void updateIce(u32 i, u32 j)
     }
 }
 
-void SAPLING
-
 void updateTree(u32 i, u32 j) 
 {
     grid[i][j].updated = true;
@@ -360,7 +358,7 @@ void updateTree(u32 i, u32 j)
         return; // No support, so do not grow
     }
 
-    // Growth mechanics (only if tree has support)
+    // 🌿 Growth mechanics (only if tree has support)
     if (isWithinBounds(i - 1, j) && grid[i - 1][j].id == 0) {
         if (countTreeNeighbors(i - 1, j) < 3 && (dis(gen) % 100) < 20) {
             grid[i - 1][j] = TREE;  // Grow upward
